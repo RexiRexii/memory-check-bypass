@@ -22,7 +22,9 @@ We have compiled it for you and put it into Releases section! So that you'll onl
 All the addresses and screenshots are from version ``version-dd069f433d43402d`` which was pushed to users on ``August 17, 2022``.
 
 # How it Works
-The memory integrity check works by having a main hasher that runs on every server and then (currently) 16 secondary hashers of which only 1 runs per server.
+The memory integrity check works by having a main hasher that always runs and then (currently) 16 secondary hashers of which only 1 runs per server you connect to and is the same for everone who is connected to said server.
+
+The reason the secondary hashers exist (and why only 1 runs per server you connect to) is to make it so the main hasher cannot be disabled by itself and to make finding all the "silent" checkers more difficult in an attempt to make a full bypass harder.
 
 The bypass works by hooking the main hasher and spoofing the addresses read with a cloned region of memory while each of the secondary hashers are hooked and their scan results are saved and returned on lookup. (This was done because caching the results of the main hasher was more work than just spoofing the address directly)
 
