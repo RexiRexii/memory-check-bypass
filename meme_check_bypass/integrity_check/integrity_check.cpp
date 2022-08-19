@@ -408,7 +408,7 @@ void memcheck_t::initialize_bypass() const
 	core_hasher_start = mem_scanner::scan_pattern("\x8B\x03\x03\xC3\x69\xC0\x2D\xFE\x94\x15\x03\xC7\xC1\xC0\x13", "xxxxxxxxxxxxxxx", { this->text.start, this->text.start + text.size })[0];
 	core_hasher_end = (core_hasher_start + 107); // End of main hasher, this never changes, if it does just scan for it
 
-	mem_utils::dbgprintf("[debug -> core] Core hasher loop entry: %X\n", core_hasher_start);
+	mem_utils::dbgprintf("[debug -> core] Core hasher loop entry: %X (%X)\n", mem_utils::rebase<std::uintptr_t>(core_hasher_start), core_hasher_start);
 
 	std::vector<std::uintptr_t> silent_checkers {}; // List of all found checkers, as of now should be 16
 
@@ -466,7 +466,7 @@ void memcheck_t::initialize_bypass() const
 						&& mem_scanner::scan_pattern("\x8B\x00\x08", "x?x", { entry, res }).size())
 					{
 						silent_checkers.push_back(entry);
-						mem_utils::dbgprintf("[debug -> core] %i secondary address: %X\n", silent_checkers.size(), mem_utils::rebase<uintptr_t>(entry));
+						mem_utils::dbgprintf("[debug -> core] %i secondary address: %X (%X)\n", silent_checkers.size(), mem_utils::rebase<uintptr_t>(entry), entry);
 					}
 				}
 
