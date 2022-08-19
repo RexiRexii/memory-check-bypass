@@ -7,4 +7,9 @@ Simply import the files within the repository (utilities and integrity_check), i
 # What if I don't want to make a new project
 We have compiled it for you and put it into Releases section! So that you'll only have to inject it.
 
+# Credits
+@ModulusAtScriptWare
+Me
+Maybe Pixleus soon?
+
 I will throw in a better documentation soon
