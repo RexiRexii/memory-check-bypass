@@ -5,10 +5,6 @@
 #include <vector>
 #include <string>
 #include <unordered_map>
-#include <string_view>
-#include <stdexcept>
-// utilities.hpp included everywhere so no need to make 3 or 4 calls to getmodulehandlea to get the same result.
-const auto base = reinterpret_cast< std::uint32_t >( GetModuleHandleA( nullptr ) );
 
 constexpr auto debug = true;
 
@@ -59,10 +55,8 @@ struct active_hasher_t
 
 namespace mem_scanner
 {
-	// no need to take c string as parameter here so changed to std::string_view								// scan bounds aren't going to be negative no reason to be signed.
-	extern std::vector<std::uintptr_t> scan_pattern(std::string_view pattern, std::string_view mask, std::pair<std::uint32_t, std::uint32_t> scan_bounds);
-	// std::string_view
-	extern section_t get_section(std::string_view section, const bool clone);
+	extern std::vector<std::uintptr_t> scan_pattern(const char* pattern, const char* mask, std::pair<std::int32_t, std::int32_t> scan_bounds);
+	extern section_t get_section(const std::string& section, const bool clone);
 }
 
 namespace mem_utils
@@ -81,11 +75,11 @@ namespace mem_utils
 		return ret((std::uintptr_t)(address)-base + to_base);
 	}
 
-	template<typename arg>
-	void dbgprintf(arg format, ...)
+	template<typename ...args>
+	void dbgprintf(const char* format, args... entry)
 	{
 		if constexpr (debug)
-			printf(format);
+			printf(format, entry...);
 	}
 
 	extern void console();
