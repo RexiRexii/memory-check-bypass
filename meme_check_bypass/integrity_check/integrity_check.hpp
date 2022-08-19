@@ -18,7 +18,7 @@ public:
 public:
 	memcheck_t();
 
-	std::uintptr_t get_job_by_name(const std::string& job_name) const;
+	std::uintptr_t get_job_by_name(const std::string_view job_name) const;
 	void initialize_bypass() const;
 };
 

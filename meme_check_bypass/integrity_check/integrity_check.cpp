@@ -8,11 +8,10 @@ memcheck_t::memcheck_t()
 	this->text = mem_scanner::get_section(".text", true);
 	this->rdata = mem_scanner::get_section(".rdata", true);
 	this->vmpx = mem_scanner::get_section(".vmpx", true);
-	this->vmp0 = mem_scanner::get_section(".vmp0", false);
+	this->vmp0 = mem_scanner::get_section(".vmp0", false); // Not cloned, nont scanned, needed in checks
 	this->vmp1 = mem_scanner::get_section(".vmp1", true);
 
-	const auto task_scheduler_pattern = mem_scanner::scan_pattern("\x55\x8B\xEC\x83\xE4\xF8\x83\xEC\x08\xE8\x00\x00\x00\x00\x8D\x0C\x24", "xxxxxxxxxx????xxx", { this->text.start, this->text.start + text.size + 0xF00000
-})[0];
+	const auto task_scheduler_pattern = mem_scanner::scan_pattern("\x55\x8B\xEC\x83\xE4\xF8\x83\xEC\x08\xE8\x00\x00\x00\x00\x8D\x0C\x24", "xxxxxxxxxx????xxx", { this->text.start, this->text.start + text.size })[0];
 
 	this->task_scheduler = reinterpret_cast<std::uintptr_t(*)()>((task_scheduler_pattern + 14) + *reinterpret_cast<std::uint32_t*>(task_scheduler_pattern + 10))();
 	this->task_scheduler_start = 308;
@@ -33,7 +32,7 @@ std::uintptr_t job_cache;
 std::uintptr_t* old_vftable = 0;
 std::uintptr_t new_vftable[6];
 
-std::uintptr_t memcheck_t::get_job_by_name(const std::string& job_name) const
+std::uintptr_t memcheck_t::get_job_by_name(std::string_view job_name) const
 {
 	auto iterator = *reinterpret_cast<const std::uintptr_t*>(this->task_scheduler + task_scheduler_start);
 	const auto job_end = *reinterpret_cast<std::uintptr_t*>(this->task_scheduler + task_scheduler_end);
@@ -42,7 +41,7 @@ std::uintptr_t memcheck_t::get_job_by_name(const std::string& job_name) const
 	{
 		const auto inst = *reinterpret_cast<job_t**>(iterator);
 
-		if (inst->name == job_name.c_str())
+		if (inst->name == job_name.data())
 			return reinterpret_cast<std::uintptr_t>(inst);
 
 		iterator += 8;
@@ -62,7 +61,7 @@ std::size_t decrypt_region_result(std::size_t entry)
 std::uintptr_t* scan_for_regions(const memcheck_t* meme, std::pair<std::uintptr_t, std::uintptr_t> region, std::uintptr_t hasher_func)
 {
 	static const auto base = reinterpret_cast<std::uintptr_t>(GetModuleHandleA(nullptr));
-	
+
 	// Scan for a move instruction of a possible region start.
 	// Instruction scanned for is:
 	//     mov     esi, ds:dword_XXXXXXXX[edi*4]
@@ -73,7 +72,6 @@ std::uintptr_t* scan_for_regions(const memcheck_t* meme, std::pair<std::uintptr_
 	{
 		// Only actually try to get the result of the pointer
 		//     IF the result is within the ".vmpx" region.
-
 		const auto mem = *reinterpret_cast<std::uintptr_t*>(res + 3);
 		if (mem >= meme->vmpx.start && mem <= meme->vmpx.start + meme->vmpx.size)
 		{
@@ -102,12 +100,11 @@ std::size_t* scan_for_region_sizes(const memcheck_t* meme, std::pair<std::uintpt
 	{
 		// Only actually try to get the result of the pointer
 		//     IF the result is within the ".vmpx" region.
-
 		const auto mem = *reinterpret_cast<std::uintptr_t*>(res + 3);
 		if (mem >= meme->vmpx.start && mem <= meme->vmpx.start + meme->vmpx.size)
 		{
 			const auto res = decrypt_region_result(*reinterpret_cast<std::uintptr_t*>(mem));
-			
+
 			const auto first_region = hasher_func + decrypt_region_result(region_list[0]);
 			const auto second_region = hasher_func + decrypt_region_result(region_list[1]);
 
@@ -121,50 +118,48 @@ std::size_t* scan_for_region_sizes(const memcheck_t* meme, std::pair<std::uintpt
 	return 0;
 }
 
+// Takes a checker and the original hash and tries to get the math operation used.
 secondary_hash_encryption bruteforce_encryption(std::uintptr_t checker, std::size_t original, std::uintptr_t hash_start, std::size_t hash_size)
 {
-	uint8_t enc_type = 7;
+	uint8_t enc_type = 7; // 111
 
 	for (std::size_t i = 0; i < 16; i++)
 	{
-		const int res = i * 1236467;
+		const int res = i * 1236467; // Some large number to try and prevent collisions as much as possible
 
 		const auto hash_enc_t = reinterpret_cast<std::size_t(__cdecl*)(std::uintptr_t, std::uintptr_t, std::uintptr_t, std::uintptr_t)>(checker);
 		const auto hash_enc = hash_enc_t(hash_start, hash_size, 0, res);
 
-		if ((enc_type & 1) && hash_enc - res != original)
-			enc_type &= ~1;
+		if ((enc_type & 1) && hash_enc - res != original) // 001
+			enc_type &= ~1; // add
 
-		if ((enc_type & 2) && hash_enc + res != original)
-			enc_type &= ~2;
+		if ((enc_type & 2) && hash_enc + res != original) // 010
+			enc_type &= ~2; // sub
 
-		if ((enc_type & 4) && (hash_enc ^ res) != original)
-			enc_type &= ~4;
+		if ((enc_type & 4) && (hash_enc ^ res) != original) // 100
+			enc_type &= ~4; // xor
 	}
 
+	// Switch based on the binary result left over
 	switch (enc_type)
 	{
-	case 1:
+	case 1: // 001
 		return secondary_hash_encryption::add_t;
-	case 2:
+	case 2: // 010
 		return secondary_hash_encryption::sub_t;
-	case 4:
+	case 4: // 100
 		return secondary_hash_encryption::xor_t;
 	}
 
 	return secondary_hash_encryption::unk_t;
 }
 
+// Main hook that is called when a secondary hasher is called
 std::size_t __stdcall silent_hook(std::size_t hasher, std::uintptr_t start, std::uintptr_t size, std::uintptr_t _zero, std::uintptr_t key)
 {
-	//mem_utils::dbgprintf("active hasher: %i %s\n", hasher, "yes");
-	const auto active_hash_list = populated_hashes[hasher];
-
-	//mem_utils::dbgprintf("start wanted: %X - %X\n", start, mem_utils::rebase<std::uintptr_t>(start));
-	//mem_utils::dbgprintf("rest: %X - %X - %X\n", size, _zero, key);
-
+	// We pass the current hasher id as the first parameter, use that to get the current hash list.
+	const auto& active_hash_list = populated_hashes[ hasher ];
 	const auto cache = active_hash_list.hashes.find(start);
-
 	if (cache == active_hash_list.hashes.end())
 		mem_utils::dbgprintf("[debug -> silent checks] error\n");
 
@@ -201,10 +196,11 @@ void __declspec(naked) silent_hook_fix()
 		// If we were to push +20 here too we would push the return address
 		//   instead of the hasher id we pushed because we push the id after
 		//   the original call instruction.
-		push[esp + 16]; 
+		push[esp + 16];
 		call silent_hook;
+		add esp, 4; // Remove the id we pushed before returning.
 
-		ret 4; // Remove the id we pushed before returning.
+		ret;
 	}
 }
 
@@ -310,7 +306,7 @@ std::uintptr_t __fastcall job_hook(std::uintptr_t _this, std::uintptr_t junk, st
 
 	// Main hasher hook
 	mem_utils::place_jmp(core_hasher_start, main_hasher_loop);
-	
+
 	// For each secondary hasher, place a "push ID" before
 	//   the jump to our hook to allow our hook to know
 	//   which hasher list to grab during the lookup.
@@ -318,14 +314,14 @@ std::uintptr_t __fastcall job_hook(std::uintptr_t _this, std::uintptr_t junk, st
 	{
 		const auto& hasher_info = populated_hashes[i];
 
-		DWORD old_protect, new_protect;
-		VirtualProtect(reinterpret_cast<void*>(hasher_info.entry), 2, PAGE_EXECUTE_READWRITE, &old_protect);
+		DWORD prot;
+		VirtualProtect(reinterpret_cast<void*>(hasher_info.entry), 2, PAGE_EXECUTE_READWRITE, &prot);
 
 		// push ID
 		*reinterpret_cast<std::uint8_t*>(hasher_info.entry) = 0x6A;
 		*reinterpret_cast<std::uint8_t*>(hasher_info.entry + 1) = i;
 
-		VirtualProtect(reinterpret_cast<void*>(hasher_info.entry), 2, old_protect, &new_protect);
+		VirtualProtect(reinterpret_cast<void*>(hasher_info.entry), 2, prot, &prot);
 
 		// Place the jump after the "push ID"
 		mem_utils::place_jmp(hasher_info.entry + 2, silent_hook_fix);
@@ -340,9 +336,9 @@ std::uintptr_t __fastcall job_hook(std::uintptr_t _this, std::uintptr_t junk, st
 
 void memcheck_t::initialize_bypass() const
 {
-	mem_utils::dbgprintf("text region: %X - %X\n", meme.text.start, meme.text.size);
-	mem_utils::dbgprintf("rdata region: %X - %X\n", meme.rdata.start, meme.rdata.size);
-	mem_utils::dbgprintf("vmp1 region: %X - %X\n", meme.vmp1.start, meme.vmp1.size);
+	mem_utils::dbgprintf("[debug -> core] text region: %X - %X\n", meme.text.start, meme.text.size);
+	mem_utils::dbgprintf("[debug -> core] rdata region: %X - %X\n", meme.rdata.start, meme.rdata.size);
+	mem_utils::dbgprintf("[debug -> core] vmp1 region: %X - %X\n", meme.vmp1.start, meme.vmp1.size);
 
 	// This block scans for the end of the function just before the main sub we are looking for.
 	// Instructions scanned for are:
@@ -390,7 +386,7 @@ void memcheck_t::initialize_bypass() const
 	}
 
 	// The region sizes contains a list of sizes for each block to be scanned
-    const auto region_sizes = scan_for_region_sizes(this, std::pair<std::uintptr_t, std::uintptr_t>(this->vmp0.start, this->vmp0.start + this->vmp0.size), hasher_func, region_list);
+	const auto region_sizes = scan_for_region_sizes(this, std::pair<std::uintptr_t, std::uintptr_t>(this->vmp0.start, this->vmp0.start + this->vmp0.size), hasher_func, region_list);
 	if (!region_sizes)
 		scan_for_region_sizes(this, std::pair<std::uintptr_t, std::uintptr_t>(this->text.start, this->text.start + this->text.size), hasher_func, region_list);
 
@@ -412,8 +408,10 @@ void memcheck_t::initialize_bypass() const
 	core_hasher_start = mem_scanner::scan_pattern("\x8B\x03\x03\xC3\x69\xC0\x2D\xFE\x94\x15\x03\xC7\xC1\xC0\x13", "xxxxxxxxxxxxxxx", { this->text.start, this->text.start + text.size })[0];
 	core_hasher_end = (core_hasher_start + 107); // End of main hasher, this never changes, if it does just scan for it
 
-	std::vector<std::uintptr_t> silent_checkers {};
-	
+	mem_utils::dbgprintf("[debug -> core] Core hasher loop entry: %X\n", core_hasher_start);
+
+	std::vector<std::uintptr_t> silent_checkers {}; // List of all found checkers, as of now should be 16
+
 	// Scan for a possible start of a possible secondary hasher.
 	// Instructions scanned for are:
 	//     movsx  ecx, byte ptr [edx - 2]
@@ -464,7 +462,7 @@ void memcheck_t::initialize_bypass() const
 					// A special note is each one of these sigs has the potential
 					//   to appear more than once in any given hasher.
 					if (mem_scanner::scan_pattern("\x8D\x00\x02", "x?x", { entry, res }).size()
-						&& mem_scanner::scan_pattern("\x8B\x00\x0C", "x?x", { entry, res }).size() 
+						&& mem_scanner::scan_pattern("\x8B\x00\x0C", "x?x", { entry, res }).size()
 						&& mem_scanner::scan_pattern("\x8B\x00\x08", "x?x", { entry, res }).size())
 					{
 						silent_checkers.push_back(entry);
@@ -505,7 +503,7 @@ void memcheck_t::initialize_bypass() const
 				if (hash_size > 0 && hasher.enc == secondary_hash_encryption::unk_t)
 					hasher.enc = bruteforce_encryption(silent_checker, hash, hash_start, hash_size);
 
-				mem_utils::dbgprintf("[debug -> core] hash start: %X\n", hash_start);
+				//mem_utils::dbgprintf("[debug -> core] hash start: %X\n", hash_start);
 				hasher.hashes[hash_start] = hash;
 			}
 
