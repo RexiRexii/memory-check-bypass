@@ -8,8 +8,8 @@ Simply import the files within the repository (utilities and integrity_check), i
 We have compiled it for you and put it into Releases section! So that you'll only have to inject it.
 
 # Credits
-@ModulusAtScriptWare
-Me
-Maybe Pixleus soon?
+* [RexiRexii](https://github.com/RexiRexii)
+* [ModulusAtScriptWare](https://github.com/ModulusAtScriptWare)
+* Pixleus
 
 I will throw in a better documentation soon
