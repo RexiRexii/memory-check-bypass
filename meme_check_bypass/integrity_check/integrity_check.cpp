@@ -364,8 +364,8 @@ void memcheck_t::initialize_bypass() const
 	for (std::size_t i = 0; i < 2; i++)
 	{
 		if (*reinterpret_cast<std::uint8_t*>(hasher_func) == 0x55
-			|| *reinterpret_cast<std::uint8_t*>(hasher_func + 1) == 0x8B
-			|| *reinterpret_cast<std::uint8_t*>(hasher_func + 2) == 0xEC)
+			&& *reinterpret_cast<std::uint8_t*>(hasher_func + 1) == 0x8B
+			&& *reinterpret_cast<std::uint8_t*>(hasher_func + 2) == 0xEC)
 		{
 			found_hasher_func = true;
 			break;
@@ -446,8 +446,8 @@ void memcheck_t::initialize_bypass() const
 			for (std::size_t i = 0; i < 5; i++)
 			{
 				if (*reinterpret_cast<std::uint8_t*>(entry) == 0x55
-					|| *reinterpret_cast<std::uint8_t*>(entry + 1) == 0x8B
-					|| *reinterpret_cast<std::uint8_t*>(entry + 2) == 0xEC)
+					&& *reinterpret_cast<std::uint8_t*>(entry + 1) == 0x8B
+					&& *reinterpret_cast<std::uint8_t*>(entry + 2) == 0xEC)
 				{
 					// Finally scan for instructions that the hasher has to
 					//   to help with collisions against random memory.
