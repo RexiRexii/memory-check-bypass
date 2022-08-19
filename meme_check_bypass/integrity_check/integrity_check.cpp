@@ -11,8 +11,7 @@ memcheck_t::memcheck_t()
 	this->vmp0 = mem_scanner::get_section(".vmp0", false);
 	this->vmp1 = mem_scanner::get_section(".vmp1", true);
 
-	const auto task_scheduler_pattern = mem_scanner::scan_pattern("\x55\x8B\xEC\x83\xE4\xF8\x83\xEC\x08\xE8\x00\x00\x00\x00\x8D\x0C\x24", "xxxxxxxxxx????xxx", { this->text.start, this->text.start + text.size + 0xF00000
-})[0];
+	const auto task_scheduler_pattern = mem_scanner::scan_pattern("\x55\x8B\xEC\x83\xE4\xF8\x83\xEC\x08\xE8\x00\x00\x00\x00\x8D\x0C\x24", "xxxxxxxxxx????xxx", { this->text.start, this->text.start + text.size + 0xF00000 })[0];
 
 	this->task_scheduler = reinterpret_cast<std::uintptr_t(*)()>((task_scheduler_pattern + 14) + *reinterpret_cast<std::uint32_t*>(task_scheduler_pattern + 10))();
 	this->task_scheduler_start = 308;
@@ -31,7 +30,7 @@ std::uintptr_t job_cache;
 std::uintptr_t* old_vftable = 0;
 std::uintptr_t new_vftable[6];
 
-std::uintptr_t memcheck_t::get_job_by_name(const std::string& job_name) const
+std::uintptr_t memcheck_t::get_job_by_name(std::string_view job_name) const
 {
 	auto iterator = *reinterpret_cast<const std::uintptr_t*>(this->task_scheduler + task_scheduler_start);
 	const auto job_end = *reinterpret_cast<std::uintptr_t*>(this->task_scheduler + task_scheduler_end);
@@ -40,7 +39,7 @@ std::uintptr_t memcheck_t::get_job_by_name(const std::string& job_name) const
 	{
 		const auto inst = *reinterpret_cast<job_t**>(iterator);
 
-		if (inst->name == job_name.c_str())
+		if (inst->name == job_name.data())
 			return reinterpret_cast<std::uintptr_t>(inst);
 
 		iterator += 8;
@@ -51,7 +50,6 @@ std::uintptr_t memcheck_t::get_job_by_name(const std::string& job_name) const
 
 std::uintptr_t* scan_for_regions(const memcheck_t* meme, std::pair<std::uintptr_t, std::uintptr_t> region, std::uintptr_t hasher_func)
 {
-	static const auto base = reinterpret_cast<std::uintptr_t>(GetModuleHandleA(nullptr));
 	for (const auto& res : mem_scanner::scan_pattern("\x8B\x34\xBD\x00\x00\x00\x00", "xxx", region))
 	{
 		const auto mem = *reinterpret_cast<std::uintptr_t*>(res + 3);
@@ -69,7 +67,6 @@ std::uintptr_t* scan_for_regions(const memcheck_t* meme, std::pair<std::uintptr_
 
 std::size_t* scan_for_region_sizes(const memcheck_t* meme, std::pair<std::uintptr_t, std::uintptr_t> region, std::uintptr_t hasher_func, std::uintptr_t* region_list)
 {
-	static const auto base = reinterpret_cast<std::uintptr_t>(GetModuleHandleA(nullptr));
 	for (const auto& res : mem_scanner::scan_pattern("\x8B\x14\xBD\x00\x00\x00\x00", "xxx", region))
 	{
 		const auto mem = *reinterpret_cast<std::uintptr_t*>(res + 3);
@@ -120,7 +117,8 @@ bool bruteforce_encryption(std::uintptr_t checker, std::size_t original, std::ui
 std::size_t __stdcall silent_hook(std::size_t hasher, std::uintptr_t start, std::uintptr_t size, std::uintptr_t _zero, std::uintptr_t key)
 {
 	mem_utils::dbgprintf("active hasher: %i\n", hasher);
-	const auto active_hash_list = populated_hashes[hasher];
+	// preventing uninentional copy.
+	const auto& active_hash_list = populated_hashes[ hasher ];
 
 	mem_utils::dbgprintf("start wanted: %X - %X\n", start, mem_utils::rebase<std::uintptr_t>(start));
 	mem_utils::dbgprintf("rest: %X - %X - %X\n", size, _zero, key);
