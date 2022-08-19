@@ -13,7 +13,7 @@ We have compiled it for you and put it into Releases section! So that you'll onl
 * [ModulusAtScriptWare](https://github.com/ModulusAtScriptWare)
 * Pixleus
 
-# Documentation disclaimer
+# Documentation Disclaimer
 All the addresses and screenshots are from version ``version-dd069f433d43402d`` which was pushed to users on ``August 17, 2022``.
 
 # How it Works
