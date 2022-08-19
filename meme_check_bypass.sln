@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.2.32526.322
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "meme_check_bypass", "meme_check_bypass\meme_check_bypass.vcxproj", "{668AA825-5BB9-4E4B-B6CA-1B500B926393}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Debug|x86 = Debug|x86
+		Release|x64 = Release|x64
+		Release|x86 = Release|x86
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{668AA825-5BB9-4E4B-B6CA-1B500B926393}.Debug|x64.ActiveCfg = Debug|x64
+		{668AA825-5BB9-4E4B-B6CA-1B500B926393}.Debug|x64.Build.0 = Debug|x64
+		{668AA825-5BB9-4E4B-B6CA-1B500B926393}.Debug|x86.ActiveCfg = Debug|Win32
+		{668AA825-5BB9-4E4B-B6CA-1B500B926393}.Debug|x86.Build.0 = Debug|Win32
+		{668AA825-5BB9-4E4B-B6CA-1B500B926393}.Release|x64.ActiveCfg = Release|x64
+		{668AA825-5BB9-4E4B-B6CA-1B500B926393}.Release|x64.Build.0 = Release|x64
+		{668AA825-5BB9-4E4B-B6CA-1B500B926393}.Release|x86.ActiveCfg = Release|Win32
+		{668AA825-5BB9-4E4B-B6CA-1B500B926393}.Release|x86.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {8C7161D4-CF10-4A9B-8393-54D0B22619C5}
+	EndGlobalSection
+EndGlobal
