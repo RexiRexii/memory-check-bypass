@@ -1,18 +1,18 @@
 #include "utilities.hpp"
 
-std::vector<std::uintptr_t> mem_scanner::scan_pattern(const char* pattern, const char* mask, std::pair<std::int32_t, std::int32_t> scan_bounds)
+std::vector<std::uintptr_t> mem_scanner::scan_pattern(std::string_view pattern, std::string_view mask, std::pair<std::uint32_t, std::uint32_t> scan_bounds)
 {
 	std::vector<std::uintptr_t> results_list = {};
+	// structured binding.
+	auto& [ start_address, end_address ] = scan_bounds;
 
-	auto bounds = std::get<0>(scan_bounds);
-
-	while (bounds < std::get<1>(scan_bounds))
+	while (start_address < end_address)
 	{
 		auto matching = true;
 
-		for (auto iter = 0; iter < std::strlen(mask); iter++)
+		for (auto iter = 0; iter < std::strlen(mask.data()); iter++)
 		{
-			if (*reinterpret_cast<std::uint8_t*>(bounds + iter) != static_cast<std::uint8_t>(pattern[iter]) && mask[iter] == 'x')
+			if (*reinterpret_cast<std::uint8_t*>(start_address + iter) != static_cast<std::uint8_t>(pattern[iter]) && mask[iter] == 'x')
 			{
 				matching = false;
 				break;
@@ -20,19 +20,18 @@ std::vector<std::uintptr_t> mem_scanner::scan_pattern(const char* pattern, const
 		}
 
 		if (matching)
-			results_list.emplace_back(bounds);
+			results_list.emplace_back(start_address);
 
-		bounds++;
+		++start_address;
 	}
 
 	return results_list;
 }
 
-section_t mem_scanner::get_section(const std::string& section, const bool clone)
+section_t mem_scanner::get_section(std::string_view section, const bool clone)
 {
 	section_t result = { 0, 0, 0 };
 
-	const auto base = reinterpret_cast<std::uintptr_t>(GetModuleHandleA(nullptr));
 	auto segments_start = 0;
 
 	while (*reinterpret_cast<std::uint64_t*>(base + segments_start) != 0x000000747865742E) // .text section
@@ -40,15 +39,18 @@ section_t mem_scanner::get_section(const std::string& section, const bool clone)
 
 	for (auto at = reinterpret_cast<segment_t*>(base + segments_start); (at->offset != 0 && at->size != 0); at++)
 	{
-		if (!std::strncmp(at->name, section.c_str(), section.length() + 1))
+		if (!std::strncmp(at->name, section.data(), section.length() + 1))
 		{
 			const auto offset = (base + at->offset);
-
+			
+			const auto clone_address = VirtualAlloc(nullptr, at->size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+			if( !clone_address )
+				throw std::runtime_error( "VirtualAlloc for clone failed" );
 			result.start = offset;
 			result.size = at->size;
-			result.clone = reinterpret_cast<uintptr_t>(VirtualAlloc(nullptr, at->size, MEM_COMMIT, PAGE_READWRITE));
+			result.clone = reinterpret_cast<uintptr_t>(clone_address);
 
-			if (clone && result.clone)
+			if (clone)
 				std::memcpy(reinterpret_cast<void*>(result.clone), reinterpret_cast<void*>(result.start), at->size);
 
 			break;
@@ -61,6 +63,8 @@ section_t mem_scanner::get_section(const std::string& section, const bool clone)
 void mem_utils::console()
 {
 	const auto lib = LoadLibraryW(L"kernel32.dll");
+	if( !lib )
+		throw std::runtime_error( "LoadLibraryW for kernel32.dll failed" );
 	const auto free_console = reinterpret_cast<std::uintptr_t>(GetProcAddress(lib, "FreeConsole"));
 
 	if (free_console)
@@ -87,7 +91,8 @@ void mem_utils::console()
 
 void mem_utils::place_jmp(std::uintptr_t address, void* to, std::size_t nop_count)
 {
-	DWORD old_protect, new_protect;
+	// new protect is never going to be used again, just reuse old_protect.
+	DWORD old_protect{ 0u };
 	VirtualProtect(reinterpret_cast<void*>(address), 5 + nop_count, PAGE_EXECUTE_READWRITE, &old_protect);
 
 	*reinterpret_cast<std::uint8_t*>(address) = 0xE9;
@@ -96,5 +101,5 @@ void mem_utils::place_jmp(std::uintptr_t address, void* to, std::size_t nop_coun
 	for (std::size_t i = 0; i < nop_count; i++)
 		*reinterpret_cast<std::uint8_t*>(address + 5 + i) = 0x90;
 
-	VirtualProtect(reinterpret_cast<void*>(address), 5 + nop_count, old_protect, &new_protect);
+	VirtualProtect(reinterpret_cast<void*>(address), 5 + nop_count, old_protect, &old_protect);
 }
