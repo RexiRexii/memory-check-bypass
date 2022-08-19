@@ -2,6 +2,11 @@
 Cripples the integrity check built-in, so it allows you to edit memory without any issues.
 UD*
 
+# What is memory integrity check?
+The memory integrity check is a set of functions that prevent you from editing memory in different regions. The regions that are scanned are ``.text``, ``.rdata``, ``.vmp1``, and ``.vmpx``. (``.vmp0`` is not scanned)
+
+The memory that is scanned is then hashed and then send to the server for verification. If the hashes do not match you get kicked, this simply spoofs the hashes to make it always return the correct hashes the server is looking for.
+
 # How to use
 Simply import the files within the repository (utilities and integrity_check), include the integrity_check.hpp into your dllmain. Afterwards declare a variable (an example is located in dllmain.cpp) and call initialize_bypass()
 
