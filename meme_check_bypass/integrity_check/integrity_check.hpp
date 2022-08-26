@@ -19,7 +19,7 @@ public:
 	memcheck_t();
 	// can use std::string_view since c++17 and is a better alternative to const std::string&
 	// because c strings / string literals *will* have temporary copies made.
-	std::uintptr_t get_job_by_name(std::string_view job_name) const;
+	std::uintptr_t get_job_by_name(const std::string_view job_name) const;
 	void initialize_bypass() const;
 };
 
