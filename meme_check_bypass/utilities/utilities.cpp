@@ -3,14 +3,13 @@
 std::vector<std::uintptr_t> mem_scanner::scan_pattern(std::string_view pattern, std::string_view mask, std::pair<std::uint32_t, std::uint32_t> scan_bounds)
 {
 	std::vector<std::uintptr_t> results_list = {};
-	// structured binding.
-	auto& [ start_address, end_address ] = scan_bounds;
+	auto& [start_address, end_address] = scan_bounds;
 
 	while (start_address < end_address)
 	{
 		auto matching = true;
 
-		for (auto iter = 0; iter < std::strlen(mask.data()); iter++)
+		for (auto iter = 0; iter < mask.length(); iter++)
 		{
 			if (*reinterpret_cast<std::uint8_t*>(start_address + iter) != static_cast<std::uint8_t>(pattern[iter]) && mask[iter] == 'x')
 			{
@@ -30,29 +29,32 @@ std::vector<std::uintptr_t> mem_scanner::scan_pattern(std::string_view pattern, 
 
 section_t mem_scanner::get_section(std::string_view section, const bool clone)
 {
-	section_t result = { 0, 0, 0 };
+	section_t result = {0, 0, 0};
 
 	auto segments_start = 0;
+	const auto base = mem_utils::get_base();
 
-	while (*reinterpret_cast<std::uint64_t*>(get_base() + segments_start) != 0x000000747865742E) // .text section
+	while (*reinterpret_cast<std::uint64_t*>(base + segments_start) != 0x000000747865742E) // .text section
 		segments_start += 4;
 
-	for (auto at = reinterpret_cast<segment_t*>(get_base() + segments_start); (at->offset != 0 && at->size != 0); at++)
+	for (auto at = reinterpret_cast<segment_t*>(base + segments_start); (at->offset != 0 && at->size != 0); at++)
 	{
 		if (!std::strncmp(at->name, section.data(), section.length() + 1))
 		{
-			const auto offset = (get_base() + at->offset);
-			
+			const auto offset = (base + at->offset);
+
 			const auto clone_address = VirtualAlloc(nullptr, at->size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
-			if( !clone_address )
-				throw std::runtime_error( "VirtualAlloc for clone failed" );
+
+			if (!clone_address)
+				throw std::runtime_error("VirtualAlloc for clone failed");
+
 			result.start = offset;
 			result.size = at->size;
-			
+
 			// Only make a region clone if the user needs, vmp0 is not scanned and thus a clone is not needed
 			if (clone)
 			{
-				result.clone = reinterpret_cast<uintptr_t>(clone_address);
+				result.clone = reinterpret_cast<std::uintptr_t>(clone_address);
 				std::memcpy(reinterpret_cast<void*>(result.clone), reinterpret_cast<void*>(result.start), at->size);
 			}
 			else
@@ -68,14 +70,16 @@ section_t mem_scanner::get_section(std::string_view section, const bool clone)
 void mem_utils::console()
 {
 	const auto lib = LoadLibraryW(L"kernel32.dll");
-	if( !lib )
-		throw std::runtime_error( "LoadLibraryW for kernel32.dll failed" );
+
+	if (!lib)
+		throw std::runtime_error("LoadLibraryW for kernel32.dll failed");
+
 	const auto free_console = reinterpret_cast<std::uintptr_t>(GetProcAddress(lib, "FreeConsole"));
 
 	if (free_console)
 	{
 		static auto jmp = free_console + 0x6;
-		DWORD prot{ 0u };
+		DWORD prot{0u};
 
 		VirtualProtect(reinterpret_cast<void*>(free_console), 0x6, PAGE_EXECUTE_READWRITE, &prot);
 		*reinterpret_cast<std::uintptr_t**>(free_console + 0x2) = &jmp;
@@ -96,7 +100,7 @@ void mem_utils::console()
 
 void mem_utils::place_jmp(std::uintptr_t address, void* to, std::size_t nop_count)
 {
-	DWORD prot{ 0u };
+	DWORD prot{0u};
 	VirtualProtect(reinterpret_cast<void*>(address), 5 + nop_count, PAGE_EXECUTE_READWRITE, &prot);
 
 	*reinterpret_cast<std::uint8_t*>(address) = 0xE9;
