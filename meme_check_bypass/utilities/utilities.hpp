@@ -32,9 +32,9 @@ struct job_t
 	std::uint8_t pad0[12];
 	std::string name;
 	std::uint8_t pad1[16];
-	double time;
+	std::double_t time;
 	std::uint8_t pad2[16];
-	double time_spend;
+	std::double_t time_spend;
 	std::uint8_t pad3[8];
 	std::uintptr_t state;
 };
@@ -49,7 +49,7 @@ enum class secondary_hash_encryption
 
 struct active_hasher_t
 {
-	uintptr_t entry;
+	std::uintptr_t entry;
 	secondary_hash_encryption enc;
 	std::unordered_map<std::uintptr_t, std::size_t> hashes;
 
@@ -59,31 +59,29 @@ struct active_hasher_t
 namespace mem_scanner
 {
 	extern std::vector<std::uintptr_t> scan_pattern(std::string_view pattern, std::string_view mask, std::pair<std::uint32_t, std::uint32_t> scan_bounds);
-
 	extern section_t get_section(std::string_view section, const bool clone);
 }
 
 namespace mem_utils
 {
-	template<typename ret, typename arg>
-	ret unbase(arg address, std::uintptr_t to_base = 0x400000)
-	{
-		static const auto base = reinterpret_cast<std::uintptr_t>(GetModuleHandleA(nullptr));
-		return ret((std::uintptr_t)(address)-to_base + base);
-	}
-
-	template<typename ret, typename arg>
-	ret rebase(arg address, std::uintptr_t to_base = 0x400000)
-	{
-		static const auto base = reinterpret_cast<std::uintptr_t>(GetModuleHandleA(nullptr));
-		return ret((std::uintptr_t)(address)-base + to_base);
-	}
-
 	// Other code that uses base on load requires this to be as a function
 	__forceinline std::uintptr_t get_base()
 	{
 		static const auto base = reinterpret_cast<std::uintptr_t>(GetModuleHandleA(nullptr));
 		return base;
+	}
+
+	template<typename ret, typename arg>
+	__forceinline ret unbase(arg address, std::uintptr_t to_base = 0x400000)
+	{
+		return ret(address - to_base + get_base());
+	}
+
+	template<typename ret, typename arg>
+	__forceinline ret rebase(arg address, std::uintptr_t to_base = 0x400000)
+	{
+		static const auto base = reinterpret_cast<std::uintptr_t>(GetModuleHandleA(nullptr));
+		return ret(address - get_base() + to_base);
 	}
 
 	template<typename ...arg>

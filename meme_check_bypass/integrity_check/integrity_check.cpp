@@ -332,8 +332,7 @@ std::uintptr_t __fastcall job_hook(std::uintptr_t _this, std::uintptr_t junk, st
 	}
 
 	// Call the old job function before returning to allow a clean pass.
-	const auto hook_t = reinterpret_cast<std::uintptr_t(__thiscall*)(std::uintptr_t, std::uintptr_t)>(old_vftable[5]);
-	const auto hook_vft = hook_t(_this, a2);
+	const auto hook_vft = reinterpret_cast<std::uintptr_t(__thiscall*)(std::uintptr_t, std::uintptr_t)>(old_vftable[5])(_this, a2);
 
 	return hook_vft;
 }
@@ -412,7 +411,7 @@ void memcheck_t::initialize_bypass() const
 	// Instructions scanned for are:
 	//     movsx  ecx, byte ptr [edx - 2]
 	// Sig: 0F BE ?? FE
-	for (auto& res : mem_scanner::scan_pattern("\x0F\xBE\x00\xFE", "xx?x", {this->text.start, this->text.start + this->text.size}))
+	for (const auto& res : mem_scanner::scan_pattern("\x0F\xBE\x00\xFE", "xx?x", {this->text.start, this->text.start + this->text.size}))
 	{
 		bool possible = false;
 
