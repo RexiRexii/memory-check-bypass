@@ -7,10 +7,9 @@
 #include <unordered_map>
 #include <string_view>
 #include <stdexcept>
-// utilities.hpp included everywhere so no need to make 3 or 4 calls to getmodulehandlea to get the same result.
-const auto base = reinterpret_cast< std::uint32_t >( GetModuleHandleA( nullptr ) );
 
-constexpr auto debug = true;
+// will log debug info, disable it if you want to use it on your module
+constexpr auto debug_info = true;
 
 struct segment_t
 {
@@ -59,9 +58,8 @@ struct active_hasher_t
 
 namespace mem_scanner
 {
-	// no need to take c string as parameter here so changed to std::string_view								// scan bounds aren't going to be negative no reason to be signed.
 	extern std::vector<std::uintptr_t> scan_pattern(std::string_view pattern, std::string_view mask, std::pair<std::uint32_t, std::uint32_t> scan_bounds);
-	// std::string_view
+
 	extern section_t get_section(std::string_view section, const bool clone);
 }
 
@@ -81,11 +79,18 @@ namespace mem_utils
 		return ret((std::uintptr_t)(address)-base + to_base);
 	}
 
-	template<typename arg>
-	void dbgprintf(arg format, ...)
+	// Other code that uses base on load requires this to be as a function
+	__forceinline std::uintptr_t get_base()
 	{
-		if constexpr (debug)
-			printf(format);
+		static const auto base = reinterpret_cast<std::uintptr_t>(GetModuleHandleA(nullptr));
+		return base;
+	}
+
+	template<typename ...arg>
+	void dbgprintf(const char* format, arg... args)
+	{
+		if constexpr (debug_info)
+			printf(format, args...);
 	}
 
 	extern void console();
