@@ -80,7 +80,6 @@ namespace mem_utils
 	template<typename ret, typename arg>
 	__forceinline ret rebase(arg address, std::uintptr_t to_base = 0x400000)
 	{
-		static const auto base = reinterpret_cast<std::uintptr_t>(GetModuleHandleA(nullptr));
 		return ret(address - get_base() + to_base);
 	}
 
