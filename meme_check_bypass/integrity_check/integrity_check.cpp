@@ -10,10 +10,10 @@ memcheck_t::memcheck_t()
 	this->vmpx = mem_scanner::get_section(".vmpx", true);
 	this->vmp0 = mem_scanner::get_section(".vmp0", false); // Not cloned, nont scanned, needed in checks
 	this->vmp1 = mem_scanner::get_section(".vmp1", true);
+	
+	const auto task_scheduler_pattern = mem_scanner::scan_pattern("\x55\x8B\xEC\x83\xEC\x10\x56\xE8\x00\x00\x00\x00\x8B\xF0\x8D\x45\xF0\x50\xE8", "xxxxxxxx????xxxxxxx", {this->text.start, this->text.start + text.size})[0];
 
-	const auto task_scheduler_pattern = mem_scanner::scan_pattern("\x55\x8B\xEC\x83\xE4\xF8\x83\xEC\x08\xE8\x00\x00\x00\x00\x8D\x0C\x24", "xxxxxxxxxx????xxx", {this->text.start, this->text.start + text.size})[0];
-
-	this->task_scheduler = reinterpret_cast<std::uintptr_t(*)()>((task_scheduler_pattern + 14) + *reinterpret_cast<std::uint32_t*>(task_scheduler_pattern + 10))();
+	this->task_scheduler = reinterpret_cast<std::uintptr_t(*)()>((task_scheduler_pattern + 12) + *reinterpret_cast<std::uint32_t*>(task_scheduler_pattern + 8))();
 	this->task_scheduler_start = 308;
 	this->task_scheduler_end = 312;
 }
@@ -349,7 +349,7 @@ void memcheck_t::initialize_bypass() const
 	//     imul    eax, 0x0CCCCCCCC
 	//     pop     edi
 	// Sig: 0F B6 45 FF 69 C0 CC CC CC CC 5F
-	auto hasher_func = mem_scanner::scan_pattern("\x0F\xB6\x45\xFF\x69\xC0\xCC\xCC\xCC\xCC\x5F", "xxxxxxxxxxx", std::pair<int32_t, int32_t>(this->text.start, this->text.start + text.size))[0];
+	auto hasher_func = mem_scanner::scan_pattern("\x33\x45\xFC\x03\xC7\x5F\x03\xC6\x33\x45\x14\x5E\x5B\x8B\xE5\x5D\xC3", "xxxxxxxxxxxxxxxxx", std::pair<int32_t, int32_t>(this->text.start, this->text.start + text.size))[0];
 
 	if (!hasher_func)
 		throw std::runtime_error("Could not grab the hasher function");
@@ -374,6 +374,9 @@ void memcheck_t::initialize_bypass() const
 
 		hasher_func += 16;
 	}
+
+	if (!found_hasher_func)
+		throw std::runtime_error("Failed to find hasher function prologue");
 
 	// The region list contains a list the start addresses for every block to be scanned
 	const auto region_list = scan_for_regions(this, std::pair<std::uintptr_t, std::uintptr_t>(this->vmp0.start, this->vmp0.start + this->vmp0.size), hasher_func);
@@ -462,6 +465,7 @@ void memcheck_t::initialize_bypass() const
 					{
 						silent_checkers.push_back(entry);
 						mem_utils::dbgprintf("[debug -> core] %i secondary address: %X (%X)\n", silent_checkers.size(), mem_utils::rebase<std::uintptr_t>(entry), entry);
+						break;
 					}
 				}
 

@@ -8,8 +8,15 @@ memcheck_t meme;
 
 void main_instance()
 {
-	mem_utils::console();
-	meme.initialize_bypass();
+	try
+	{
+		mem_utils::console();
+		meme.initialize_bypass();
+	}
+	catch (std::exception& e)
+	{
+		printf("[Error] %s\n", e.what());
+	}
 }
 
 bool __stdcall DllMain( HINSTANCE instance, std::int32_t call_reason, void* )
