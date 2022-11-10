@@ -345,38 +345,21 @@ void memcheck_t::initialize_bypass() const
 
 	// This block scans for the end of the function just before the main sub we are looking for.
 	// Instructions scanned for are:
-	//     movzx   eax, byte ptr [ebp-1]
-	//     imul    eax, 0x0CCCCCCCC
-	//     pop     edi
-	// Sig: 0F B6 45 FF 69 C0 CC CC CC CC 5F
-	auto hasher_func = mem_scanner::scan_pattern("\x33\x45\xFC\x03\xC7\x5F\x03\xC6\x33\x45\x14\x5E\x5B\x8B\xE5\x5D\xC3", "xxxxxxxxxxxxxxxxx", std::pair<int32_t, int32_t>(this->text.start, this->text.start + text.size))[0];
+	//    push    ebp
+	//    mov     ebp, esp
+	//    sub     esp, 0x48
+	//    push    ebx
+	//    push    esi
+	//    push    edi
+	//    mov     ebx, ecx
+	//    push    0
+	//    mov[ebp - 0x1C], ebx
+	//    jmp     ????
+	// Sig: 55 8B EC 83 EC 48 53 56 57 8B D9 6A 00 89 5D E4 E9
+	auto hasher_func = mem_scanner::scan_pattern("\x55\x8B\xEC\x83\xEC\x48\x53\x56\x57\x8B\xD9\x6A\x00\x89\x5D\xE4\xE9", "xxxxxxxxxxxxxxxxx", std::pair<int32_t, int32_t>(this->text.start, this->text.start + text.size))[0];
 
 	if (!hasher_func)
 		throw std::runtime_error("Could not grab the hasher function");
-
-	// If found scan for the entry of the next function.
-	// Instructions scanned for are:
-	//     push ebp
-	//     mov ebp, esp
-	// All functions are aligned to 16 byte boundaries allowing this to work well.
-	bool found_hasher_func = false;
-	hasher_func += 16 - (hasher_func % 16); // Align to 16 byte boundary
-
-	for (std::size_t i = 0; i < 2; i++)
-	{
-		if (*reinterpret_cast<std::uint8_t*>(hasher_func) == 0x55
-			&& *reinterpret_cast<std::uint8_t*>(hasher_func + 1) == 0x8B
-			&& *reinterpret_cast<std::uint8_t*>(hasher_func + 2) == 0xEC)
-		{
-			found_hasher_func = true;
-			break;
-		}
-
-		hasher_func += 16;
-	}
-
-	if (!found_hasher_func)
-		throw std::runtime_error("Failed to find hasher function prologue");
 
 	// The region list contains a list the start addresses for every block to be scanned
 	const auto region_list = scan_for_regions(this, std::pair<std::uintptr_t, std::uintptr_t>(this->vmp0.start, this->vmp0.start + this->vmp0.size), hasher_func);
