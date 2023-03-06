@@ -58,7 +58,7 @@ struct active_hasher_t
 
 namespace mem_scanner
 {
-	extern std::vector<std::uintptr_t> scan_pattern(std::string_view pattern, std::string_view mask, std::pair<std::uint32_t, std::uint32_t> scan_bounds);
+	extern std::vector<std::uintptr_t> scan_pattern(std::string_view pattern, std::string_view mask, std::pair<std::uint32_t, std::uint32_t> scan_bounds, int max_size);
 	extern section_t get_section(std::string_view section, const bool clone);
 }
 
