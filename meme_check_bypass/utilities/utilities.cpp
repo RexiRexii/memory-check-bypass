@@ -1,6 +1,6 @@
 #include "utilities.hpp"
 
-std::vector<std::uintptr_t> mem_scanner::scan_pattern(std::string_view pattern, std::string_view mask, std::pair<std::uint32_t, std::uint32_t> scan_bounds)
+std::vector<std::uintptr_t> mem_scanner::scan_pattern(std::string_view pattern, std::string_view mask, std::pair<std::uint32_t, std::uint32_t> scan_bounds, int max_size)
 {
 	std::vector<std::uintptr_t> results_list = {};
 	auto& [start_address, end_address] = scan_bounds;
@@ -19,7 +19,10 @@ std::vector<std::uintptr_t> mem_scanner::scan_pattern(std::string_view pattern, 
 		}
 
 		if (matching)
+		{
 			results_list.emplace_back(start_address);
+			if (results_list.size() == max_size) break;
+		}
 
 		++start_address;
 	}
