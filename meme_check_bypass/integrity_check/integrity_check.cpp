@@ -11,7 +11,7 @@ memcheck_t::memcheck_t()
 	this->vmp0 = mem_scanner::get_section(".vmp0", false); // Not cloned, nont scanned, needed in checks
 	this->vmp1 = mem_scanner::get_section(".vmp1", true);
 	
-	const auto task_scheduler_pattern = mem_scanner::scan_pattern("\x55\x8B\xEC\x83\xEC\x10\x56\xE8\x00\x00\x00\x00\x8B\xF0\x8D\x45\xF0\x50\xE8", "xxxxxxxx????xxxxxxx", {this->text.start, this->text.start + text.size})[0];
+	const auto task_scheduler_pattern = mem_scanner::scan_pattern("\x55\x8B\xEC\x83\xEC\x10\x56\xE8\x00\x00\x00\x00\x8B\xF0\x8D\x45\xF0\x50\xE8", "xxxxxxxx????xxxxxxx", {this->text.start, this->text.start + text.size}, 1)[0];
 
 	this->task_scheduler = reinterpret_cast<std::uintptr_t(*)()>((task_scheduler_pattern + 12) + *reinterpret_cast<std::uint32_t*>(task_scheduler_pattern + 8))();
 	this->task_scheduler_start = 308;
@@ -70,7 +70,7 @@ std::uintptr_t* scan_for_regions(const memcheck_t* meme, std::pair<std::uintptr_
 	// Sig: 8B 34 BD ?? ?? ?? ??
 	// The extra unknowns are ommited during scan but are
 	//    present in the comment for the sake of visuals.
-	for (const auto& res : mem_scanner::scan_pattern("\x8B\x34\xBD\x00\x00\x00\x00", "xxx", region))
+	for (const auto& res : mem_scanner::scan_pattern("\x8B\x34\xBD\x00\x00\x00\x00", "xxx", region, 0))
 	{
 		// Only actually try to get the result of the pointer
 		//     IF the result is within the ".vmpx" region.
@@ -99,7 +99,7 @@ std::size_t* scan_for_region_sizes(const memcheck_t* meme, std::pair<std::uintpt
 	// Sig: 8B 14 BD ?? ?? ?? ??
 	// The extra unknowns are ommited during scan but are
 	//    present in the comment for the sake of visuals.
-	for (const auto& res : mem_scanner::scan_pattern("\x8B\x14\xBD\x00\x00\x00\x00", "xxx", region))
+	for (const auto& res : mem_scanner::scan_pattern("\x8B\x14\xBD\x00\x00\x00\x00", "xxx", region, 0))
 	{
 		// Only actually try to get the result of the pointer
 		//     IF the result is within the ".vmpx" region.
@@ -356,7 +356,7 @@ void memcheck_t::initialize_bypass() const
 	//    mov[ebp - 0x1C], ebx
 	//    jmp     ????
 	// Sig: 55 8B EC 83 EC 48 53 56 57 8B D9 6A 00 89 5D E4 E9
-	auto hasher_func = mem_scanner::scan_pattern("\x55\x8B\xEC\x83\xEC\x48\x53\x56\x57\x8B\xD9\x6A\x00\x89\x5D\xE4\xE9", "xxxxxxxxxxxxxxxxx", std::pair<int32_t, int32_t>(this->text.start, this->text.start + text.size))[0];
+	auto hasher_func = mem_scanner::scan_pattern("\x55\x8B\xEC\x83\xEC\x48\x53\x56\x57\x8B\xD9\x6A\x00\x89\x5D\xE4\xE9", "xxxxxxxxxxxxxxxxx", std::pair<int32_t, int32_t>(this->text.start, this->text.start + text.size), 1)[0];
 
 	if (!hasher_func)
 		throw std::runtime_error("Could not grab the hasher function");
@@ -386,7 +386,7 @@ void memcheck_t::initialize_bypass() const
 	//     add     eax, edi
 	//     rol     eax, 0x13
 	// Sig: 8B 03 03 C3 69 C0 2D FE 94 15 03 C7 C1 C0 13
-	core_hasher_start = mem_scanner::scan_pattern("\x8B\x03\x03\xC3\x69\xC0\x2D\xFE\x94\x15\x03\xC7\xC1\xC0\x13", "xxxxxxxxxxxxxxx", {this->text.start, this->text.start + text.size})[0];
+	core_hasher_start = mem_scanner::scan_pattern("\x8B\x03\x03\xC3\x69\xC0\x2D\xFE\x94\x15\x03\xC7\xC1\xC0\x13", "xxxxxxxxxxxxxxx", {this->text.start, this->text.start + text.size}, 1)[0];
 	core_hasher_end = (core_hasher_start + 107); // End of main hasher, this never changes, if it does just scan for it
 
 	mem_utils::dbgprintf("[debug -> core] Core hasher loop entry: %X (%X)\n", mem_utils::rebase<std::uintptr_t>(core_hasher_start), core_hasher_start);
@@ -397,7 +397,7 @@ void memcheck_t::initialize_bypass() const
 	// Instructions scanned for are:
 	//     movsx  ecx, byte ptr [edx - 2]
 	// Sig: 0F BE ?? FE
-	for (const auto& res : mem_scanner::scan_pattern("\x0F\xBE\x00\xFE", "xx?x", {this->text.start, this->text.start + this->text.size}))
+	for (const auto& res : mem_scanner::scan_pattern("\x0F\xBE\x00\xFE", "xx?x", {this->text.start, this->text.start + this->text.size}, 0))
 	{
 		bool possible = false;
 
@@ -410,8 +410,8 @@ void memcheck_t::initialize_bypass() const
 		//         movsx  UNK, byte ptr [UNK - 0x11]
 		// Sig 1: 0F BE ?? FE
 		// Sig 2: 0F BE ?? EF
-		if (mem_scanner::scan_pattern("\x0F\xBE\x00\xFF", "xx?x", {res, res + 50}).size() == 1
-			|| mem_scanner::scan_pattern("\x0F\xBE\x00\xEF", "xx?x", {res, res + 50}).size() == 1)
+		if (mem_scanner::scan_pattern("\x0F\xBE\x00\xFF", "xx?x", {res, res + 50}, 2).size() == 1
+			|| mem_scanner::scan_pattern("\x0F\xBE\x00\xEF", "xx?x", {res, res + 50}, 2).size() == 1)
 			possible = true;
 
 		if (possible)
@@ -442,9 +442,9 @@ void memcheck_t::initialize_bypass() const
 					//     8B ?? 08
 					// A special note is each one of these sigs has the potential
 					//   to appear more than once in any given hasher.
-					if (mem_scanner::scan_pattern("\x8D\x00\x02", "x?x", {entry, res}).size()
-						&& mem_scanner::scan_pattern("\x8B\x00\x0C", "x?x", {entry, res}).size()
-						&& mem_scanner::scan_pattern("\x8B\x00\x08", "x?x", {entry, res}).size())
+					if (mem_scanner::scan_pattern("\x8D\x00\x02", "x?x", {entry, res}, 1).size()
+						&& mem_scanner::scan_pattern("\x8B\x00\x0C", "x?x", {entry, res}, 1).size()
+						&& mem_scanner::scan_pattern("\x8B\x00\x08", "x?x", {entry, res}, 1).size())
 					{
 						silent_checkers.push_back(entry);
 						mem_utils::dbgprintf("[debug -> core] %i secondary address: %X (%X)\n", silent_checkers.size(), mem_utils::rebase<std::uintptr_t>(entry), entry);
